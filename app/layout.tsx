@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Fonte Certa — simulador do bot",
-  description: "Demonstração pública de consulta a fontes acadêmicas para jornalistas.",
+  title: "Fonte Certa — fontes acadêmicas para jornalistas",
+  description: "Encontre especialistas de universidades públicas por tema e confira a fonte institucional de cada perfil.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
