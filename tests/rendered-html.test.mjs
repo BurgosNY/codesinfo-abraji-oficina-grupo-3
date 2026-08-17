@@ -11,7 +11,7 @@ test("renders the public Fonte Certa experience", async () => {
 
   assert.match(layout, /title: "Fonte Certa — fontes acadêmicas para jornalistas"/i);
   assert.match(page, /<CatalogClient \/>/);
-  assert.match(client, /SOMENTE PESSOAS REAIS/);
+  assert.match(client, /30 FONTES REAIS · UM TEMA/);
   assert.match(client, /Boas fontes para começar/);
   assert.match(client, /RESULTADOS VERIFICÁVEIS/);
   assert.doesNotMatch(client, /DEMONSTRAÇÃO FICTÍCIA ORIGINAL/);
@@ -25,7 +25,12 @@ test("contains only real, officially sourced profiles", async () => {
     readFile(new URL("../app/catalog-client.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.equal((seed.match(/updatedBy: "base-inicial"/g) ?? []).length, 15);
+  assert.equal((seed.match(/expert\(\{/g) ?? []).length, 30);
+  assert.equal((seed.match(/universityId: "ufmg"/g) ?? []).length, 10);
+  assert.equal((seed.match(/universityId: "unicamp"/g) ?? []).length, 10);
+  assert.equal((seed.match(/universityId: "usp"/g) ?? []).length, 10);
+  assert.equal((seed.match(/referenceTitle: /g) ?? []).length, 30);
+  assert.equal((seed.match(/referenceUrl: "https:\/\//g) ?? []).length, 30);
   assert.match(seed, /id: "ufmg"/);
   assert.match(seed, /id: "unicamp"/);
   assert.match(seed, /id: "usp"/);
@@ -36,6 +41,7 @@ test("contains only real, officially sourced profiles", async () => {
   assert.doesNotMatch(client, /Ana Ribeiro|João Mendonça|Lívia Santos|Renata Freire/);
   assert.doesNotMatch(client, /\.invalid|FICTÍCIO|FICTÍCIA|simulado/i);
   assert.match(client, /PERFIL REAL · FONTE OFICIAL/);
+  assert.match(client, /Reportagem de referência/);
 });
 
 test("protects curation writes with sign-in and an explicit curator allowlist", async () => {

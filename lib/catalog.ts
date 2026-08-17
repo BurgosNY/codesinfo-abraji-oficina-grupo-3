@@ -36,6 +36,8 @@ const schemaStatements = [
     phone TEXT,
     profile_url TEXT NOT NULL,
     source_label TEXT NOT NULL,
+    reference_title TEXT NOT NULL,
+    reference_url TEXT NOT NULL,
     verified_at TEXT NOT NULL,
     status TEXT NOT NULL CHECK(status IN ('draft', 'published', 'archived')),
     created_at TEXT NOT NULL,
@@ -71,6 +73,14 @@ async function initializeCatalog() {
   const d1 = getD1();
   await d1.batch(schemaStatements.map((statement) => d1.prepare(statement)));
 
+  const expertColumns = await d1.prepare("PRAGMA table_info(experts)").all<{ name: string }>();
+  if (!expertColumns.results.some((column) => column.name === "reference_title")) {
+    await d1.prepare("ALTER TABLE experts ADD COLUMN reference_title TEXT NOT NULL DEFAULT ''").run();
+  }
+  if (!expertColumns.results.some((column) => column.name === "reference_url")) {
+    await d1.prepare("ALTER TABLE experts ADD COLUMN reference_url TEXT NOT NULL DEFAULT ''").run();
+  }
+
   await d1.batch(
     seedUniversities.map((university) =>
       d1
@@ -94,14 +104,14 @@ async function initializeCatalog() {
     ),
   );
 
-  await d1.batch(
-    seedExperts.map((expert) =>
+  const prepareExpertSeed = (expert: (typeof seedExperts)[number], replace = false) =>
       d1
         .prepare(
-          `INSERT OR IGNORE INTO experts
+          `INSERT ${replace ? "OR REPLACE " : "OR IGNORE "}INTO experts
             (id, university_id, name, title, department, area, specialties, summary, email, phone,
-             profile_url, source_label, verified_at, status, created_at, updated_at, updated_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             profile_url, source_label, reference_title, reference_url, verified_at, status,
+             created_at, updated_at, updated_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           expert.id,
@@ -116,14 +126,16 @@ async function initializeCatalog() {
           expert.phone,
           expert.profileUrl,
           expert.sourceLabel,
+          expert.referenceTitle,
+          expert.referenceUrl,
           expert.verifiedAt,
           expert.status,
           expert.createdAt,
           expert.updatedAt,
           expert.updatedBy,
-        ),
-    ),
-  );
+        );
+
+  await d1.batch(seedExperts.map((expert) => prepareExpertSeed(expert)));
 
   await d1.batch(
     seedCurators.map((curator) =>
@@ -178,6 +190,22 @@ async function initializeCatalog() {
         .bind(contactProofCorrection, correctedAt),
     ]);
   }
+
+  const thematicCatalogMigration = "2026-08-17-thematic-30-v1";
+  const thematicCatalogApplied = await d1
+    .prepare("SELECT id FROM catalog_data_migrations WHERE id = ?")
+    .bind(thematicCatalogMigration)
+    .first<{ id: string }>();
+  if (!thematicCatalogApplied) {
+    const migratedAt = new Date().toISOString();
+    await d1.batch([
+      d1.prepare("DELETE FROM experts"),
+      ...seedExperts.map((expert) => prepareExpertSeed(expert, true)),
+      d1
+        .prepare("INSERT INTO catalog_data_migrations (id, applied_at) VALUES (?, ?)")
+        .bind(thematicCatalogMigration, migratedAt),
+    ]);
+  }
 }
 
 type UniversityRow = {
@@ -208,6 +236,8 @@ type ExpertRow = {
   phone: string | null;
   profile_url: string;
   source_label: string;
+  reference_title: string;
+  reference_url: string;
   verified_at: string;
   status: ExpertStatus;
   created_at: string;
@@ -261,6 +291,8 @@ function mapExpert(row: ExpertRow): Expert {
     phone: row.phone,
     profileUrl: row.profile_url,
     sourceLabel: row.source_label,
+    referenceTitle: row.reference_title,
+    referenceUrl: row.reference_url,
     verifiedAt: row.verified_at,
     status: row.status,
     createdAt: row.created_at,
@@ -281,7 +313,8 @@ function mapCurator(row: CuratorRow): Curator {
 const expertSelect = `SELECT
   e.id, e.university_id, u.name AS university_name, u.acronym AS university_acronym,
   e.name, e.title, e.department, e.area, e.specialties, e.summary, e.email, e.phone,
-  e.profile_url, e.source_label, e.verified_at, e.status, e.created_at, e.updated_at, e.updated_by
+  e.profile_url, e.source_label, e.reference_title, e.reference_url, e.verified_at, e.status,
+  e.created_at, e.updated_at, e.updated_by
   FROM experts e INNER JOIN universities u ON u.id = e.university_id`;
 
 export async function getPublicCatalog() {
@@ -346,6 +379,8 @@ export type ExpertInput = Pick<
   | "phone"
   | "profileUrl"
   | "sourceLabel"
+  | "referenceTitle"
+  | "referenceUrl"
   | "verifiedAt"
   | "status"
 >;
@@ -421,6 +456,8 @@ export async function saveExpert(input: ExpertInput, editorEmail: string) {
     : "draft";
   const profileUrl = cleanText(input.profileUrl, "a página oficial", status === "published");
   if (profileUrl) validHttpUrl(profileUrl, "A página oficial");
+  const referenceUrl = cleanText(input.referenceUrl, "a reportagem de referência", status === "published");
+  if (referenceUrl) validHttpUrl(referenceUrl, "A reportagem de referência");
   const verifiedAt = cleanText(input.verifiedAt, "a data de verificação", status === "published");
   if (verifiedAt && !/^\d{4}-\d{2}-\d{2}$/.test(verifiedAt)) {
     throw new Error("A data de verificação deve estar no formato AAAA-MM-DD.");
@@ -434,13 +471,15 @@ export async function saveExpert(input: ExpertInput, editorEmail: string) {
     .prepare(
       `INSERT INTO experts
         (id, university_id, name, title, department, area, specialties, summary, email, phone,
-         profile_url, source_label, verified_at, status, created_at, updated_at, updated_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         profile_url, source_label, reference_title, reference_url, verified_at, status,
+         created_at, updated_at, updated_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          university_id = excluded.university_id, name = excluded.name, title = excluded.title,
          department = excluded.department, area = excluded.area, specialties = excluded.specialties,
          summary = excluded.summary, email = excluded.email, phone = excluded.phone,
          profile_url = excluded.profile_url, source_label = excluded.source_label,
+         reference_title = excluded.reference_title, reference_url = excluded.reference_url,
          verified_at = excluded.verified_at, status = excluded.status,
          updated_at = excluded.updated_at, updated_by = excluded.updated_by`,
     )
@@ -457,6 +496,8 @@ export async function saveExpert(input: ExpertInput, editorEmail: string) {
       cleanText(input.phone, "o telefone", false) || null,
       profileUrl,
       cleanText(input.sourceLabel, "o nome da fonte", status === "published"),
+      cleanText(input.referenceTitle, "o título da reportagem", status === "published"),
+      referenceUrl,
       verifiedAt,
       status,
       now,

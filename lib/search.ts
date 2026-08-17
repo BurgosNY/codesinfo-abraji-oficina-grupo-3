@@ -32,6 +32,7 @@ export function rankExperts(experts: Expert[], query: string, universityId = "al
       const area = normalize(expert.area);
       const specialties = normalize(expert.specialties.join(" "));
       const summary = normalize(expert.summary);
+      const reference = normalize(expert.referenceTitle);
       const institution = normalize(`${expert.universityName} ${expert.universityAcronym} ${expert.department}`);
       let score = 0;
 
@@ -40,6 +41,7 @@ export function rankExperts(experts: Expert[], query: string, universityId = "al
         if (specialties.includes(token)) score += 7;
         if (area.includes(token)) score += 5;
         if (summary.includes(token)) score += 3;
+        if (reference.includes(token)) score += 2;
         if (institution.includes(token)) score += 2;
       }
       if (normalizedQuery && specialties.includes(normalizedQuery)) score += 12;

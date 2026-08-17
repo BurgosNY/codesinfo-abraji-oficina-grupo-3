@@ -30,6 +30,8 @@ export const experts = sqliteTable(
     phone: text("phone"),
     profileUrl: text("profile_url").notNull(),
     sourceLabel: text("source_label").notNull(),
+    referenceTitle: text("reference_title").notNull(),
+    referenceUrl: text("reference_url").notNull(),
     verifiedAt: text("verified_at").notNull(),
     status: text("status", { enum: ["draft", "published", "archived"] }).notNull(),
     createdAt: text("created_at").notNull(),

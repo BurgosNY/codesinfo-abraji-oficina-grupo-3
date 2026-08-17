@@ -21,6 +21,8 @@ const emptyExpert = (universityId: string): ExpertDraft => ({
   phone: "",
   profileUrl: "",
   sourceLabel: "",
+  referenceTitle: "",
+  referenceUrl: "",
   verifiedAt: new Date().toISOString().slice(0, 10),
   status: "draft",
 });
@@ -100,6 +102,8 @@ export default function CuradoriaClient({
       phone: expert.phone ?? "",
       profileUrl: expert.profileUrl,
       sourceLabel: expert.sourceLabel,
+      referenceTitle: expert.referenceTitle,
+      referenceUrl: expert.referenceUrl,
       verifiedAt: expert.verifiedAt,
       status: expert.status,
     });
@@ -242,6 +246,8 @@ export default function CuradoriaClient({
               <label className="span-2">Página oficial<input type="url" value={expertDraft.profileUrl} onChange={(event) => setExpertDraft({ ...expertDraft, profileUrl: event.target.value })} required={expertDraft.status === "published"} /></label>
               <label>Nome da fonte<input value={expertDraft.sourceLabel} onChange={(event) => setExpertDraft({ ...expertDraft, sourceLabel: event.target.value })} required={expertDraft.status === "published"} /></label>
               <label>Data de verificação<input type="date" value={expertDraft.verifiedAt} onChange={(event) => setExpertDraft({ ...expertDraft, verifiedAt: event.target.value })} required={expertDraft.status === "published"} /></label>
+              <label className="span-2">Título da reportagem de referência<input value={expertDraft.referenceTitle} onChange={(event) => setExpertDraft({ ...expertDraft, referenceTitle: event.target.value })} required={expertDraft.status === "published"} /></label>
+              <label className="span-2">URL da reportagem de referência<input type="url" value={expertDraft.referenceUrl} onChange={(event) => setExpertDraft({ ...expertDraft, referenceUrl: event.target.value })} required={expertDraft.status === "published"} /></label>
             </div>
             <div className="edit-actions"><button type="button" onClick={() => setExpertDraft(null)}>Cancelar</button><button className="primary-button" disabled={saving}>{saving ? "Salvando…" : "Salvar perfil"}</button></div>
           </form>

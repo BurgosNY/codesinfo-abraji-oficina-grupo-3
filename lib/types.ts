@@ -28,6 +28,8 @@ export type Expert = {
   phone: string | null;
   profileUrl: string;
   sourceLabel: string;
+  referenceTitle: string;
+  referenceUrl: string;
   verifiedAt: string;
   status: ExpertStatus;
   createdAt: string;

@@ -5,10 +5,10 @@ import { rankExperts } from "@/lib/search";
 import type { CatalogPayload, Expert } from "@/lib/types";
 
 const suggestedQueries = [
-  "desinformação em plataformas digitais",
-  "mudanças climáticas e Amazônia",
-  "regulação de inteligência artificial",
-  "indicadores de políticas públicas",
+  "checagem de fake news em eleições",
+  "deepfakes e conteúdo sintético",
+  "desinformação sobre vacinas",
+  "como avaliar uma fonte de informação",
 ];
 
 function formatDate(value: string) {
@@ -64,8 +64,8 @@ export default function CatalogClient() {
   return (
     <main>
       <div className="pilot-bar">
-        <b>SOMENTE PESSOAS REAIS</b>
-        <span>15 pesquisadores reais · 3 universidades · identidade e vínculo comprovados em página oficial</span>
+        <b>30 FONTES REAIS · UM TEMA</b>
+        <span>checagem, fake news e desinformação · 10 fontes por universidade · vínculo comprovado</span>
       </div>
 
       <header className="site-header">
@@ -90,8 +90,8 @@ export default function CatalogClient() {
             <em>Boas fontes para começar.</em>
           </h1>
           <p className="hero-intro">
-            Pesquise por tema, área ou nome e encontre docentes de universidades públicas com vínculo e página
-            institucional conferíveis.
+            Encontre pessoas reais para verificar alegações, investigar desinformação e decidir se um conteúdo é
+            confiável. Cada perfil combina vínculo institucional e uma reportagem de referência.
           </p>
           <form className="search-box" onSubmit={submitSearch}>
             <label htmlFor="main-search">Qual é o tema da sua pauta?</label>
@@ -100,7 +100,7 @@ export default function CatalogClient() {
                 id="main-search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Ex.: desinformação, clima, saúde pública…"
+                placeholder="Ex.: deepfake, vacina, eleição, fonte confiável…"
               />
               <button type="submit">Buscar fontes</button>
             </div>
@@ -130,7 +130,7 @@ export default function CatalogClient() {
         <aside className="coverage-card">
           <span className="live-dot" />
           <p className="eyebrow">COBERTURA INICIAL</p>
-          <strong>{catalog?.experts.length ?? 15}</strong>
+          <strong>{catalog?.experts.length ?? 30}</strong>
           <span>perfis publicados</span>
           <div className="coverage-universities">
             {(catalog?.universities ?? []).map((university) => (
@@ -171,8 +171,8 @@ export default function CatalogClient() {
         {catalog && ranked.length === 0 && (
           <div className="empty-state">
             <b>Nenhuma correspondência neste lote.</b>
-            <p>A base ainda é pequena. Tente um tema mais amplo ou consulte todas as universidades.</p>
-            <button onClick={() => applySuggestion("inteligência artificial")}>Usar uma sugestão</button>
+            <p>Tente uma etapa da checagem, um formato de conteúdo ou o assunto da alegação.</p>
+            <button onClick={() => applySuggestion("fake news")}>Buscar por fake news</button>
           </div>
         )}
         {catalog && ranked.length > 0 && (
@@ -197,10 +197,10 @@ export default function CatalogClient() {
                 </div>
                 <div className="card-actions">
                   <button className="card-action" onClick={() => setSelectedExpert(expert)}>
-                    Ver dados e contato <span>→</span>
+                    Ver perfil e referências <span>→</span>
                   </button>
-                  <a href={expert.profileUrl} target="_blank" rel="noreferrer">
-                    Comprovar na página oficial ↗
+                  <a href={expert.referenceUrl} target="_blank" rel="noreferrer">
+                    Ler reportagem de referência ↗
                   </a>
                 </div>
               </article>
@@ -225,7 +225,7 @@ export default function CatalogClient() {
         </div>
         <ol>
           <li><span>01</span><div><b>Diretórios oficiais</b><p>A base parte de páginas públicas das próprias universidades.</p></div></li>
-          <li><span>02</span><div><b>Curadoria rastreável</b><p>Cada perfil registra sua fonte e a data da última verificação.</p></div></li>
+          <li><span>02</span><div><b>Reportagem de referência</b><p>Os nomes foram encontrados em cobertura jornalística sobre desinformação e checagem.</p></div></li>
           <li><span>03</span><div><b>Contato fora da plataforma</b><p>O site localiza e exibe; nunca aborda a fonte automaticamente.</p></div></li>
         </ol>
       </section>
@@ -252,6 +252,7 @@ export default function CatalogClient() {
               {selectedExpert.phone && <div><dt>Telefone público</dt><dd><a href={`tel:${selectedExpert.phone}`}>{selectedExpert.phone}</a></dd></div>}
               <div><dt>Última verificação</dt><dd>{formatDate(selectedExpert.verifiedAt)}</dd></div>
               <div><dt>Origem</dt><dd>{selectedExpert.sourceLabel}</dd></div>
+              <div><dt>Reportagem de referência</dt><dd><a href={selectedExpert.referenceUrl} target="_blank" rel="noreferrer">{selectedExpert.referenceTitle} ↗</a></dd></div>
             </dl>
             <a className="official-link" href={selectedExpert.profileUrl} target="_blank" rel="noreferrer">Abrir página oficial ↗</a>
             <p className="editorial-note">Confira o vínculo e a adequação à pauta antes de fazer contato.</p>
