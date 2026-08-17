@@ -11,15 +11,15 @@ test("renders the public Fonte Certa experience", async () => {
 
   assert.match(layout, /title: "Fonte Certa — fontes acadêmicas para jornalistas"/i);
   assert.match(page, /<CatalogClient \/>/);
-  assert.match(client, /BASE-PILOTO CURADA/);
+  assert.match(client, /SOMENTE PESSOAS REAIS/);
   assert.match(client, /Boas fontes para começar/);
   assert.match(client, /RESULTADOS VERIFICÁVEIS/);
-  assert.match(client, /DEMONSTRAÇÃO FICTÍCIA ORIGINAL/);
+  assert.doesNotMatch(client, /DEMONSTRAÇÃO FICTÍCIA ORIGINAL/);
   assert.match(client, /href="\/curadoria"/);
   assert.doesNotMatch(client, /experiência futura do bot no Slack/i);
 });
 
-test("keeps real seed records separate from the fictitious demonstration", async () => {
+test("contains only real, officially sourced profiles", async () => {
   const [seed, client] = await Promise.all([
     readFile(new URL("../lib/seed-data.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/catalog-client.tsx", import.meta.url), "utf8"),
@@ -31,10 +31,10 @@ test("keeps real seed records separate from the fictitious demonstration", async
   assert.match(seed, /id: "usp"/);
   assert.match(seed, /profileUrl: "https:\/\//);
   assert.doesNotMatch(seed, /\.invalid/);
+  assert.doesNotMatch(seed, /cunhae@ufmg\.br|deborah@enf\.ufmg\.br|meira@dcc\.ufmg\.br|deisy\.ventura@usp\.br/);
 
-  assert.match(client, /Ana Ribeiro/);
-  assert.match(client, /universidade-exemplo\.invalid/);
-  assert.match(client, /PERFIL FICTÍCIO · DEMONSTRAÇÃO/);
+  assert.doesNotMatch(client, /Ana Ribeiro|João Mendonça|Lívia Santos|Renata Freire/);
+  assert.doesNotMatch(client, /\.invalid|FICTÍCIO|FICTÍCIA|simulado/i);
   assert.match(client, /PERFIL REAL · FONTE OFICIAL/);
 });
 

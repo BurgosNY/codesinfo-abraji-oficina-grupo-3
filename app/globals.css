@@ -141,9 +141,11 @@ button { color: inherit; }
 .source-line { display: flex; gap: 9px; align-items: center; margin-top: auto; padding-top: 20px; }
 .source-line > span { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: var(--green-soft); color: var(--green); font-size: 10px; font-weight: 900; }
 .source-line p { margin: 0; color: var(--muted); font-size: 10px; }
-.card-action { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 16px; border: 0; border-top: 1px solid var(--line); padding: 16px 0 0; background: transparent; color: var(--green); font-size: 13px; font-weight: 750; cursor: pointer; }
+.card-actions { margin-top: 16px; border-top: 1px solid var(--line); }
+.card-action { display: flex; align-items: center; justify-content: space-between; width: 100%; border: 0; padding: 16px 0 8px; background: transparent; color: var(--green); font-size: 13px; font-weight: 750; cursor: pointer; }
 .card-action:hover span { transform: translateX(3px); }
 .card-action span { transition: transform .15s ease; }
+.card-actions > a { display: inline-block; color: var(--muted); font-size: 10px; font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
 .show-more { display: block; margin: 26px auto 0; border: 1px solid var(--ink); border-radius: 99px; padding: 12px 20px; background: transparent; font-weight: 700; cursor: pointer; }
 .loading-state, .empty-state { min-height: 250px; display: grid; place-content: center; justify-items: center; border: 1px dashed #bdc6c1; border-radius: 18px; text-align: center; }
 .loading-state i { width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--green); border-radius: 50%; animation: spin .8s linear infinite; }

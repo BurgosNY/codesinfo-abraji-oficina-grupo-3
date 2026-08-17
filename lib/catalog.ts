@@ -48,6 +48,10 @@ const schemaStatements = [
     active INTEGER NOT NULL,
     created_at TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS catalog_data_migrations (
+    id TEXT PRIMARY KEY NOT NULL,
+    applied_at TEXT NOT NULL
+  )`,
   "CREATE INDEX IF NOT EXISTS experts_status_idx ON experts(status)",
   "CREATE INDEX IF NOT EXISTS experts_university_idx ON experts(university_id)",
   "CREATE INDEX IF NOT EXISTS experts_name_idx ON experts(name)",
@@ -130,6 +134,50 @@ async function initializeCatalog() {
         .bind(curator.email.toLowerCase(), curator.name, curator.active ? 1 : 0, curator.createdAt),
     ),
   );
+
+  const realOnlyCorrection = "2026-08-17-real-only-v1";
+  const alreadyCorrected = await d1
+    .prepare("SELECT id FROM catalog_data_migrations WHERE id = ?")
+    .bind(realOnlyCorrection)
+    .first<{ id: string }>();
+  if (!alreadyCorrected) {
+    await d1.batch([
+      d1
+        .prepare(
+          `UPDATE experts SET email = NULL, profile_url = ?, source_label = ?, updated_at = ?, updated_by = ?
+           WHERE id = 'usp-wilson-bueno'`,
+        )
+        .bind(
+          "https://portalservicos.usp.br/especialistas/especialistaObter?codpub=97A29E6FE1D9",
+          "Portal de Especialistas da USP",
+          new Date().toISOString(),
+          "verificacao-oficial",
+        ),
+      d1
+        .prepare("INSERT INTO catalog_data_migrations (id, applied_at) VALUES (?, ?)")
+        .bind(realOnlyCorrection, new Date().toISOString()),
+    ]);
+  }
+
+  const contactProofCorrection = "2026-08-17-contact-proof-v1";
+  const contactsAlreadyCorrected = await d1
+    .prepare("SELECT id FROM catalog_data_migrations WHERE id = ?")
+    .bind(contactProofCorrection)
+    .first<{ id: string }>();
+  if (!contactsAlreadyCorrected) {
+    const correctedAt = new Date().toISOString();
+    await d1.batch([
+      d1
+        .prepare(
+          `UPDATE experts SET email = NULL, phone = NULL, updated_at = ?, updated_by = ?
+           WHERE id IN ('ufmg-evandro-cunha', 'ufmg-deborah-malta', 'ufmg-wagner-meira', 'usp-deisy-ventura', 'usp-paulo-artaxo')`,
+        )
+        .bind(correctedAt, "verificacao-oficial"),
+      d1
+        .prepare("INSERT INTO catalog_data_migrations (id, applied_at) VALUES (?, ?)")
+        .bind(contactProofCorrection, correctedAt),
+    ]);
+  }
 }
 
 type UniversityRow = {

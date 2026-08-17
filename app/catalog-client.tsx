@@ -4,80 +4,6 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { rankExperts } from "@/lib/search";
 import type { CatalogPayload, Expert } from "@/lib/types";
 
-type DemoExpert = {
-  name: string;
-  institution: string;
-  area: string;
-  topics: string[];
-  why: string;
-  email: string;
-};
-
-const demoExperts: Record<string, DemoExpert[]> = {
-  desinformacao: [
-    {
-      name: "Ana Ribeiro",
-      institution: "Universidade Federal Demonstrativa",
-      area: "Comunicação e política",
-      topics: ["desinformação", "plataformas digitais", "eleições"],
-      why: "Pesquisa diretamente circulação de conteúdo enganoso e moderação de plataformas.",
-      email: "ana.ribeiro@universidade-exemplo.invalid",
-    },
-    {
-      name: "João Mendonça",
-      institution: "Universidade Estadual de Exemplo",
-      area: "Ciência da computação",
-      topics: ["detecção automática", "redes sociais", "IA responsável"],
-      why: "Atua em métodos computacionais para identificar padrões de propagação.",
-      email: "joao.mendonca@universidade-exemplo.invalid",
-    },
-    {
-      name: "Lívia Santos",
-      institution: "Instituto Público Fictício",
-      area: "Saúde coletiva",
-      topics: ["desinformação em saúde", "vacinas", "comunicação de risco"],
-      why: "Especialização adequada quando a pauta envolve saúde pública.",
-      email: "livia.santos@instituto-exemplo.invalid",
-    },
-  ],
-  clima: [
-    {
-      name: "Carlos Azevedo",
-      institution: "Universidade Federal Demonstrativa",
-      area: "Climatologia",
-      topics: ["eventos extremos", "mudança climática", "modelagem"],
-      why: "Aderência direta a eventos extremos e comunicação de incerteza climática.",
-      email: "carlos.azevedo@universidade-exemplo.invalid",
-    },
-    {
-      name: "Beatriz Lima",
-      institution: "Universidade Estadual de Exemplo",
-      area: "Planejamento urbano",
-      topics: ["adaptação", "risco urbano", "políticas públicas"],
-      why: "Pode contextualizar impactos e respostas de cidades a extremos.",
-      email: "beatriz.lima@universidade-exemplo.invalid",
-    },
-  ],
-  inteligencia: [
-    {
-      name: "João Mendonça",
-      institution: "Universidade Estadual de Exemplo",
-      area: "Ciência da computação",
-      topics: ["inteligência artificial", "auditoria algorítmica", "IA responsável"],
-      why: "Pesquisa avaliação e governança de sistemas algorítmicos.",
-      email: "joao.mendonca@universidade-exemplo.invalid",
-    },
-    {
-      name: "Renata Freire",
-      institution: "Universidade Pública Piloto",
-      area: "Direito digital",
-      topics: ["regulação de IA", "direitos digitais", "proteção de dados"],
-      why: "Contribui com perspectiva regulatória e de direitos.",
-      email: "renata.freire@universidade-exemplo.invalid",
-    },
-  ],
-};
-
 const suggestedQueries = [
   "desinformação em plataformas digitais",
   "mudanças climáticas e Amazônia",
@@ -91,15 +17,6 @@ function formatDate(value: string) {
   );
 }
 
-function demoCategory(query: string) {
-  const normalized = query.toLowerCase();
-  if (normalized.includes("clima") || normalized.includes("enchente")) return "clima";
-  if (normalized.includes("ia") || normalized.includes("inteligência") || normalized.includes("algorit")) {
-    return "inteligencia";
-  }
-  return "desinformacao";
-}
-
 export default function CatalogClient() {
   const [catalog, setCatalog] = useState<CatalogPayload | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -108,8 +25,6 @@ export default function CatalogClient() {
   const [universityId, setUniversityId] = useState("all");
   const [selectedExpert, setSelectedExpert] = useState<Expert | null>(null);
   const [showAll, setShowAll] = useState(false);
-  const [demoQuery, setDemoQuery] = useState("quem pesquisa desinformação?");
-  const [selectedDemo, setSelectedDemo] = useState<DemoExpert | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -132,7 +47,6 @@ export default function CatalogClient() {
     [catalog, submittedQuery, universityId],
   );
   const visibleResults = showAll ? ranked : ranked.slice(0, 8);
-  const currentDemo = demoExperts[demoCategory(demoQuery)];
 
   function submitSearch(event: FormEvent) {
     event.preventDefault();
@@ -150,8 +64,8 @@ export default function CatalogClient() {
   return (
     <main>
       <div className="pilot-bar">
-        <b>BASE-PILOTO CURADA</b>
-        <span>15 perfis reais · 3 universidades · cada resultado aponta para uma fonte oficial</span>
+        <b>SOMENTE PESSOAS REAIS</b>
+        <span>15 pesquisadores reais · 3 universidades · identidade e vínculo comprovados em página oficial</span>
       </div>
 
       <header className="site-header">
@@ -164,7 +78,6 @@ export default function CatalogClient() {
         </a>
         <nav aria-label="Navegação principal">
           <a href="#como-funciona">Como funciona</a>
-          <a href="#demonstracao">Demonstração</a>
           <a className="curation-link" href="/curadoria">Curadoria ↗</a>
         </nav>
       </header>
@@ -282,9 +195,14 @@ export default function CatalogClient() {
                   <span>✓</span>
                   <p>Fonte oficial verificada em <b>{formatDate(expert.verifiedAt)}</b></p>
                 </div>
-                <button className="card-action" onClick={() => setSelectedExpert(expert)}>
-                  Ver perfil e contato <span>→</span>
-                </button>
+                <div className="card-actions">
+                  <button className="card-action" onClick={() => setSelectedExpert(expert)}>
+                    Ver dados e contato <span>→</span>
+                  </button>
+                  <a href={expert.profileUrl} target="_blank" rel="noreferrer">
+                    Comprovar na página oficial ↗
+                  </a>
+                </div>
               </article>
             ))}
           </div>
@@ -312,38 +230,6 @@ export default function CatalogClient() {
         </ol>
       </section>
 
-      <section className="demo-section" id="demonstracao">
-        <div className="demo-copy">
-          <span className="demo-label">DEMONSTRAÇÃO FICTÍCIA ORIGINAL</span>
-          <h2>O primeiro protótipo continua aqui.</h2>
-          <p>
-            Estes nomes foram criados para explicar a ideia na oficina. Eles ficam isolados da busca real e nenhum
-            contato abaixo deve ser usado.
-          </p>
-          <div className="demo-buttons">
-            {[
-              ["desinformação", "quem pesquisa desinformação?"],
-              ["mudança climática", "quem pesquisa mudança climática?"],
-              ["inteligência artificial", "fontes sobre inteligência artificial"],
-            ].map(([label, value]) => (
-              <button className={demoCategory(demoQuery) === demoCategory(value) ? "active" : ""} key={label} onClick={() => setDemoQuery(value)}>
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="demo-window">
-          <div className="demo-window-head"><b>Resultado simulado</b><span>dados fictícios</span></div>
-          {currentDemo.map((expert) => (
-            <button key={`${demoCategory(demoQuery)}-${expert.name}`} onClick={() => setSelectedDemo(expert)}>
-              <span className="fake-avatar">{expert.name.split(" ").map((part) => part[0]).slice(0, 2).join("")}</span>
-              <div><b>{expert.name}</b><small>{expert.institution} · {expert.area}</small><p>{expert.why}</p></div>
-              <i>→</i>
-            </button>
-          ))}
-        </div>
-      </section>
-
       <footer>
         <div><b>Fonte Certa</b><span>Projeto do Grupo 3 · Oficina Abraji</span></div>
         <p>Base inicial verificável, pronta para ser ampliada pela curadoria do grupo.</p>
@@ -369,21 +255,6 @@ export default function CatalogClient() {
             </dl>
             <a className="official-link" href={selectedExpert.profileUrl} target="_blank" rel="noreferrer">Abrir página oficial ↗</a>
             <p className="editorial-note">Confira o vínculo e a adequação à pauta antes de fazer contato.</p>
-          </article>
-        </div>
-      )}
-
-      {selectedDemo && (
-        <div className="modal-backdrop" onClick={() => setSelectedDemo(null)}>
-          <article className="modal demo-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={`Exemplo fictício de ${selectedDemo.name}`}>
-            <button className="close" onClick={() => setSelectedDemo(null)} aria-label="Fechar">×</button>
-            <span className="fake-label">PERFIL FICTÍCIO · DEMONSTRAÇÃO</span>
-            <h2>{selectedDemo.name}</h2>
-            <p className="modal-role">{selectedDemo.institution}<br />{selectedDemo.area}</p>
-            <h3>Por que apareceu</h3><p>{selectedDemo.why}</p>
-            <h3>Temas</h3><div className="tags">{selectedDemo.topics.map((topic) => <span key={topic}>{topic}</span>)}</div>
-            <dl><div><dt>Contato simulado</dt><dd>{selectedDemo.email}</dd></div></dl>
-            <div className="warning"><b>Não use este contato</b><p>O domínio .invalid confirma que o registro não pertence a uma pessoa real.</p></div>
           </article>
         </div>
       )}
