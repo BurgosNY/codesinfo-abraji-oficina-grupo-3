@@ -1,100 +1,67 @@
-# vinext-starter
+# Fonte Certa
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+Protótipo do Grupo 3 da oficina de construção com IA do Hackaton Codesinfo, realizado no 21º Congresso da Abraji.
 
-## Prerequisites
+O projeto simula um bot interno para ajudar jornalistas a localizar docentes e especialistas de universidades públicas a partir do tema de uma pauta. A experiência pública reproduz uma conversa no Slack e explica por que cada perfil poderia ser relevante.
 
-- Node.js `>=22.13.0`
+## O que o protótipo faz
 
-## Quick Start
+- recebe perguntas em texto livre sobre um tema jornalístico;
+- demonstra consultas sobre desinformação, clima e inteligência artificial;
+- lista área, instituição, temas de pesquisa e aderência de cada perfil;
+- explica o motivo da correspondência entre a pergunta e o especialista;
+- permite abrir um painel com mais detalhes do perfil;
+- apresenta estado vazio e sugestões quando não há correspondência;
+- reforça que o contato deve acontecer fora do sistema e após conferência humana.
+
+## Estado atual
+
+Todos os nomes, instituições, contatos e índices de aderência são fictícios. Os domínios `.invalid` impedem o uso acidental dos endereços de demonstração. A versão publicada ainda não possui catálogo acadêmico real, integração com Slack nem autenticação da redação.
+
+- [Abrir a demonstração](https://codesinfo-abraji-oficina-grupo-3.burgos.chatgpt.site)
+- [Ler o registro das interações no Slack](public/historico-interacoes.html)
+
+## Como rodar localmente
+
+### Pré-requisitos
+
+- Node.js 22.13 ou mais recente;
+- npm.
+
+### Instalação e desenvolvimento
 
 ```bash
-npm install
+npm ci
 npm run dev
+```
+
+Abra no navegador o endereço informado pelo terminal.
+
+### Validação e execução de produção
+
+```bash
+npm test
 npm run build
+npm run start
 ```
 
-This starter does not use `wrangler.jsonc`.
+A simulação está em `app/page.tsx`; os estilos ficam em `app/globals.css`.
 
-## Included Shape
+## Roadmap possível
 
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
+- [ ] Criar um catálogo real a partir de páginas institucionais públicas e autorizadas.
+- [ ] Registrar a URL de origem, a data de verificação e a cobertura de cada universidade.
+- [ ] Disponibilizar uma área de curadoria para revisar, corrigir, mesclar e desativar perfis.
+- [ ] Implementar busca semântica com critérios de aderência visíveis e auditáveis.
+- [ ] Integrar um bot privado ao Slack com autenticação e controle de acesso da redação.
+- [ ] Expandir a cobertura nacional por lotes verificados de universidades federais e estaduais.
+- [ ] Atualizar contatos profissionais periodicamente e oferecer mecanismo de correção ou remoção.
+- [ ] Deduplicar pesquisadores, instituições, áreas e variações de nomes.
+- [ ] Medir cobertura, atualização e qualidade do catálogo sem ranquear pessoas por prestígio.
 
-## Workspace Auth Headers
+## Princípios editoriais e de privacidade
 
-Signed-in visitors receive both `oai-authenticated-user-id` and `oai-authenticated-user-email`. Private Sites require every visitor to sign in; public Sites may also have anonymous visitors, for whom neither header is present.
-
-The user ID is stable for the same user on the same Site and different across Sites. Email and name are intended for display or contact purposes.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const userId = requestHeaders.get("oai-authenticated-user-id");
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
-```
-
-## Optional Dispatch-Owned ChatGPT Sign-In
-
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
-
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
-
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
-
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
-
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
-
-## Useful Commands
-
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+- Somente contatos profissionais públicos ou autorizados devem ser exibidos.
+- Toda recomendação precisa indicar origem e motivo da correspondência.
+- A ferramenta localiza fontes; não inicia contato automaticamente.
+- O jornalista deve confirmar identidade, vínculo atual e pertinência antes da entrevista.
