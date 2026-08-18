@@ -1,100 +1,145 @@
-# vinext-starter
+# Fonte Certa
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+Diretório de fontes acadêmicas para jornalistas que trabalham com checagem de informação, fake news e desinformação.
 
-## Prerequisites
+**Demo:** [codesinfo-abraji-oficina-grupo-3.burgos.chatgpt.site](https://codesinfo-abraji-oficina-grupo-3.burgos.chatgpt.site/)
 
-- Node.js `>=22.13.0`
+O projeto nasceu no Grupo 3 de uma oficina da Abraji. A proposta é reduzir o tempo entre receber uma pauta e encontrar pessoas reais, com vínculo acadêmico verificável, que possam ajudar a avaliar uma alegação, um conteúdo ou uma fonte.
 
-## Quick Start
+## O que o projeto faz
+
+- Reúne uma base inicial de **30 pessoas reais**, com 10 perfis de cada universidade: UFMG, Unicamp e USP.
+- Mantém nome, afiliação, área, especialidades e bio editorial, além de links para uma página institucional e uma reportagem de referência.
+- Recebe uma pergunta escrita em linguagem natural e compara a necessidade da pauta com o catálogo fechado de pesquisadores.
+- Usa o **GPT-5.6 Luna** para fazer o match semântico e explicar por que cada pessoa foi sugerida.
+- Exibe níveis editoriais de aderência — alta, média ou exploratória — em vez de uma falsa porcentagem de precisão.
+- Volta automaticamente para uma busca lexical quando o modelo não está configurado ou não responde.
+- Oferece uma área de curadoria para editar universidades, perfis e pessoas autorizadas a manter a base.
+
+O Fonte Certa é uma ferramenta de descoberta. A sugestão não substitui a avaliação jornalística, a conferência do vínculo institucional nem a apuração com a fonte.
+
+## Como o match funciona
+
+1. A pergunta e o filtro de universidade chegam ao endpoint `POST /api/match`.
+2. O servidor carrega apenas os perfis publicados na base curada.
+3. O Luna recebe uma versão compacta desses perfis e devolve, em JSON estruturado, até 10 sugestões com nível de aderência, justificativa e sinais utilizados.
+4. O servidor aceita somente IDs existentes no catálogo, remove duplicatas e descarta respostas fora do contrato.
+5. Se a API não estiver disponível, o site usa o ranking lexical determinístico como fallback.
+
+A pergunta é processada com `store: false`. A chave da OpenAI fica exclusivamente no servidor e nunca é enviada ao navegador.
+
+## Rotas principais
+
+| Rota | Função |
+| --- | --- |
+| `/` | Busca pública e perfis das fontes |
+| `/curadoria` | Administração da base por pessoas autorizadas |
+| `GET /api/catalog` | Catálogo público de universidades e perfis publicados |
+| `POST /api/match` | Match semântico com fallback lexical |
+| `GET/POST /api/admin/catalog` | Leitura e manutenção autenticada da curadoria |
+
+## Tecnologias
+
+- Next.js 16 e React 19
+- TypeScript
+- Vinext e Cloudflare Workers
+- Cloudflare D1 e Drizzle ORM
+- OpenAI Responses API com `gpt-5.6-luna`
+- Sites e Sign in with ChatGPT para hospedagem e identidade da curadoria
+
+## Como rodar localmente
+
+### Requisitos
+
+- Node.js `>= 22.13.0`
+- npm
+- Uma chave da OpenAI é opcional: sem ela, a busca continua funcionando no modo lexical.
+
+### Instalação
 
 ```bash
+git clone https://github.com/BurgosNY/codesinfo-abraji-oficina-grupo-3.git
+cd codesinfo-abraji-oficina-grupo-3
 npm install
+cp .env.example .env.local
+```
+
+Para habilitar o match semântico, preencha a variável abaixo em `.env.local`:
+
+```dotenv
+OPENAI_API_KEY=
+```
+
+Inicie o ambiente de desenvolvimento:
+
+```bash
 npm run dev
+```
+
+Abra [http://localhost:3000](http://localhost:3000). Na primeira requisição, o banco D1 local é preparado e recebe a base inicial automaticamente.
+
+> A busca pública funciona localmente. A autenticação da curadoria depende dos cabeçalhos de identidade injetados pelo Sites no ambiente hospedado.
+
+## Validação
+
+```bash
+npm test
 npm run build
 ```
 
-This starter does not use `wrangler.jsonc`.
+`npm test` executa o build e verifica a experiência pública, a presença dos 30 perfis reais, a proteção da curadoria e o contrato do motor Luna.
 
-## Included Shape
+## Estrutura resumida
 
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
-
-## Workspace Auth Headers
-
-Signed-in visitors receive both `oai-authenticated-user-id` and `oai-authenticated-user-email`. Private Sites require every visitor to sign in; public Sites may also have anonymous visitors, for whom neither header is present.
-
-The user ID is stable for the same user on the same Site and different across Sites. Email and name are intended for display or contact purposes.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const userId = requestHeaders.get("oai-authenticated-user-id");
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```text
+app/                  páginas e endpoints do site
+app/api/match/        motor de match semântico
+app/curadoria/        interface de manutenção da base
+db/                   acesso e schema do D1
+lib/catalog.ts        inicialização, leitura e escrita do catálogo
+lib/search.ts         ranking lexical de fallback
+lib/seed-data.ts      universidades e perfis iniciais
+tests/                verificações automatizadas
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+## Roadmap possível
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
+O roadmap abaixo é uma lista de possibilidades, não um compromisso fechado.
 
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
+### Qualidade editorial e transparência
 
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
+- Criar um conjunto de pautas avaliadas por jornalistas para medir precisão e utilidade do ranking.
+- Mostrar quais campos do perfil sustentaram cada justificativa do match.
+- Versionar prompts e comparar Luna, busca lexical e outros modelos com os mesmos casos.
+- Permitir que a curadoria fixe, rebaixe ou exclua uma sugestão para determinados temas.
 
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
+### Base e curadoria
 
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
+- Incluir novas universidades conforme a disponibilidade de diretórios públicos estruturados.
+- Adicionar múltiplas reportagens de referência e histórico de verificação por perfil.
+- Criar alertas para vínculos ou páginas institucionais que deixaram de responder.
+- Oferecer um fluxo de correção, atualização ou remoção solicitado pela própria pessoa cadastrada.
+- Registrar trilha de auditoria das edições feitas pela curadoria.
 
-## Useful Commands
+### Fluxo de trabalho jornalístico
 
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
+- Salvar uma lista curta de fontes por pauta.
+- Gerar um link compartilhável ou exportar uma ficha de contatos para a redação.
+- Adicionar filtros por tema, instituição, localização e tipo de contribuição esperada.
+- Sugerir perguntas iniciais para a entrevista com base na pauta e no perfil selecionado.
+- Incluir contatos públicos somente quando houver origem verificável.
 
-## Learn More
+### Operação e escala
 
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+- Adicionar limite de requisições, orçamento por período e monitoramento de custo da API.
+- Criar cache seguro para consultas recorrentes sem armazenar pautas sensíveis indevidamente.
+- Medir latência, uso do fallback e taxa de seleção das fontes sugeridas.
+- Melhorar acessibilidade, desempenho móvel e tratamento de conexões lentas.
+
+## Princípios do projeto
+
+1. **Pessoas reais antes de volume:** nenhum perfil fictício na demo.
+2. **Disponibilidade antes de prestígio:** priorizar universidades com dados públicos que possam ser mantidos.
+3. **Catálogo fechado:** o modelo pode ordenar e explicar, mas não inventar fontes.
+4. **Lastro verificável:** cada perfil precisa apontar para origem institucional e referência editorial.
+5. **Decisão humana:** o match apoia a pauta; não decide sozinho quem é a fonte correta.

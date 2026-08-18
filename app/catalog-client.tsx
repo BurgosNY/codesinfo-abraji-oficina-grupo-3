@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { rankExperts } from "@/lib/search";
-import type { CatalogPayload, Expert } from "@/lib/types";
+import type { CatalogPayload, Expert, ExpertMatch, MatchLevel, MatchPayload } from "@/lib/types";
 
 const suggestedQueries = [
   "checagem de fake news em eleições",
@@ -17,6 +17,23 @@ function formatDate(value: string) {
   );
 }
 
+function levelLabel(level: MatchLevel) {
+  if (level === "alta") return "Alta aderência";
+  if (level === "media") return "Média aderência";
+  return "Hipótese exploratória";
+}
+
+async function fetchMatches(query: string, universityId: string) {
+  const response = await fetch("/api/match", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query, universityId }),
+  });
+  const payload = (await response.json()) as MatchPayload & { error?: string };
+  if (!response.ok) throw new Error(payload.error || "Falha ao comparar as fontes.");
+  return payload;
+}
+
 export default function CatalogClient() {
   const [catalog, setCatalog] = useState<CatalogPayload | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -25,33 +42,101 @@ export default function CatalogClient() {
   const [universityId, setUniversityId] = useState("all");
   const [selectedExpert, setSelectedExpert] = useState<Expert | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [matchPayload, setMatchPayload] = useState<MatchPayload | null>(null);
+  const [matchError, setMatchError] = useState("");
+  const [isMatching, setIsMatching] = useState(true);
+  const matchRequest = useRef(0);
 
   useEffect(() => {
     let active = true;
-    fetch("/api/catalog")
-      .then(async (response) => {
+    async function loadCatalogAndInitialMatch() {
+      try {
+        const response = await fetch("/api/catalog");
         const payload = (await response.json()) as CatalogPayload & { error?: string };
         if (!response.ok) throw new Error(payload.error || "Falha ao carregar a base.");
-        if (active) setCatalog(payload);
-      })
-      .catch((error: unknown) => {
-        if (active) setLoadError(error instanceof Error ? error.message : "Falha ao carregar a base.");
-      });
+        if (!active) return;
+        setCatalog(payload);
+      } catch (error) {
+        if (active) {
+          setLoadError(error instanceof Error ? error.message : "Falha ao carregar a base.");
+          setIsMatching(false);
+        }
+        return;
+      }
+
+      const requestId = ++matchRequest.current;
+      try {
+        const initialMatch = await fetchMatches("desinformação", "all");
+        if (active && matchRequest.current === requestId) setMatchPayload(initialMatch);
+      } catch (error) {
+        if (active && matchRequest.current === requestId) {
+          setMatchError(error instanceof Error ? error.message : "O motor semântico não respondeu.");
+        }
+      } finally {
+        if (active && matchRequest.current === requestId) setIsMatching(false);
+      }
+    }
+
+    void loadCatalogAndInitialMatch();
     return () => {
       active = false;
     };
   }, []);
 
-  const ranked = useMemo(
-    () => (catalog ? rankExperts(catalog.experts, submittedQuery, universityId) : []),
-    [catalog, submittedQuery, universityId],
-  );
+  const ranked = useMemo(() => {
+    if (!catalog) return [];
+    const expertsById = new Map(catalog.experts.map((expert) => [expert.id, expert]));
+    const payloadIsCurrent =
+      matchPayload?.query === submittedQuery && matchPayload.universityId === universityId;
+
+    if (payloadIsCurrent) {
+      return matchPayload.matches.flatMap((match) => {
+        const expert = expertsById.get(match.expertId);
+        return expert ? [{ expert, match }] : [];
+      });
+    }
+
+    if (matchError) {
+      return rankExperts(catalog.experts, submittedQuery, universityId)
+        .slice(0, 10)
+        .map(({ expert, score }) => ({
+          expert,
+          match: {
+            expertId: expert.id,
+            level: score >= 20 ? "alta" : score >= 10 ? "media" : "exploratoria",
+            rationale: "Correspondência encontrada pelas palavras presentes no perfil.",
+            signals: expert.specialties.slice(0, 3),
+          } satisfies ExpertMatch,
+        }));
+    }
+
+    return [];
+  }, [catalog, matchError, matchPayload, submittedQuery, universityId]);
   const visibleResults = showAll ? ranked : ranked.slice(0, 8);
+
+  async function runMatch(nextQuery: string, nextUniversityId: string) {
+    const requestId = ++matchRequest.current;
+    setIsMatching(true);
+    setMatchError("");
+    setMatchPayload(null);
+    try {
+      const payload = await fetchMatches(nextQuery, nextUniversityId);
+      if (matchRequest.current === requestId) setMatchPayload(payload);
+    } catch (error) {
+      if (matchRequest.current === requestId) {
+        setMatchError(error instanceof Error ? error.message : "O motor semântico não respondeu.");
+      }
+    } finally {
+      if (matchRequest.current === requestId) setIsMatching(false);
+    }
+  }
 
   function submitSearch(event: FormEvent) {
     event.preventDefault();
-    setSubmittedQuery(query.trim());
+    const nextQuery = query.trim();
+    setSubmittedQuery(nextQuery);
     setShowAll(false);
+    void runMatch(nextQuery, universityId);
     document.getElementById("resultados")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -59,6 +144,13 @@ export default function CatalogClient() {
     setQuery(value);
     setSubmittedQuery(value);
     setShowAll(false);
+    void runMatch(value, universityId);
+  }
+
+  function changeUniversity(nextUniversityId: string) {
+    setUniversityId(nextUniversityId);
+    setShowAll(false);
+    void runMatch(submittedQuery, nextUniversityId);
   }
 
   return (
@@ -107,7 +199,7 @@ export default function CatalogClient() {
             <select
               aria-label="Filtrar por universidade"
               value={universityId}
-              onChange={(event) => setUniversityId(event.target.value)}
+              onChange={(event) => changeUniversity(event.target.value)}
             >
               <option value="all">Todas as universidades</option>
               {catalog?.universities.map((university) => (
@@ -152,13 +244,23 @@ export default function CatalogClient() {
             <p className="eyebrow">RESULTADOS VERIFICÁVEIS</p>
             <h2>{submittedQuery ? `Fontes para “${submittedQuery}”` : "Todos os perfis"}</h2>
           </div>
-          {catalog && <span>{ranked.length} correspondência{ranked.length === 1 ? "" : "s"}</span>}
+          {catalog && !isMatching && <span>{ranked.length} fonte{ranked.length === 1 ? "" : "s"} sugerida{ranked.length === 1 ? "" : "s"}</span>}
         </div>
 
-        {!catalog && !loadError && (
+        {catalog && !isMatching && (matchPayload || matchError) && (
+          <div className={`match-engine ${matchPayload?.engine === "gpt-5.6-luna" ? "is-semantic" : "is-fallback"}`}>
+            <div>
+              <b>{matchPayload?.engine === "gpt-5.6-luna" ? "MATCH SEMÂNTICO · GPT-5.6 LUNA" : "FALLBACK · PALAVRAS-CHAVE"}</b>
+              <p>{matchPayload?.warning || matchPayload?.queryUnderstanding || "A comparação semântica não respondeu; exibindo a busca lexical."}</p>
+            </div>
+            {matchPayload && <small>{(matchPayload.latencyMs / 1000).toFixed(1)}s · catálogo fechado</small>}
+          </div>
+        )}
+
+        {(!catalog || isMatching) && !loadError && (
           <div className="loading-state">
             <i />
-            <p>Consultando a base curada…</p>
+            <p>{catalog ? "Luna está comparando a pauta com os 30 perfis…" : "Consultando a base curada…"}</p>
           </div>
         )}
         {loadError && (
@@ -168,23 +270,26 @@ export default function CatalogClient() {
             <button onClick={() => location.reload()}>Tentar novamente</button>
           </div>
         )}
-        {catalog && ranked.length === 0 && (
+        {catalog && !isMatching && ranked.length === 0 && (
           <div className="empty-state">
             <b>Nenhuma correspondência neste lote.</b>
             <p>Tente uma etapa da checagem, um formato de conteúdo ou o assunto da alegação.</p>
             <button onClick={() => applySuggestion("fake news")}>Buscar por fake news</button>
           </div>
         )}
-        {catalog && ranked.length > 0 && (
+        {catalog && !isMatching && ranked.length > 0 && (
           <div className="expert-grid">
-            {visibleResults.map(({ expert, score }) => (
+            {visibleResults.map(({ expert, match }) => (
               <article className="expert-card" key={expert.id}>
                 <div className="expert-card-top">
                   <span className="university-pill">{expert.universityAcronym}</span>
-                  <span className="match-label">{Math.min(99, 62 + score)}% aderência lexical</span>
+                  <span className={`match-label level-${match.level}`}>
+                    {levelLabel(match.level)}{matchPayload?.engine === "gpt-5.6-luna" ? " · Luna" : " · lexical"}
+                  </span>
                 </div>
                 <h3>{expert.name}</h3>
                 <p className="expert-role">{expert.title} · {expert.department}</p>
+                <p className="match-reason"><b>Por que apareceu:</b> {match.rationale}</p>
                 <p className="expert-summary">{expert.summary}</p>
                 <div className="tags">
                   {expert.specialties.slice(0, 4).map((specialty) => (

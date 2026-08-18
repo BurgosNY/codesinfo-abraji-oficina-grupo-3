@@ -59,3 +59,19 @@ test("protects curation writes with sign-in and an explicit curator allowlist", 
   assert.match(schema, /export const universities/);
   assert.match(schema, /export const experts/);
 });
+
+test("uses Luna for semantic matching without presenting a fake probability", async () => {
+  const [route, client] = await Promise.all([
+    readFile(new URL("../app/api/match/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/catalog-client.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(route, /const MODEL = "gpt-5\.6-luna"/);
+  assert.match(route, /type: "json_schema"/);
+  assert.match(route, /Nunca crie nomes, credenciais ou conhecimentos/);
+  assert.match(route, /lexicalFallback/);
+  assert.match(client, /Por que apareceu:/);
+  assert.match(client, /MATCH SEMÂNTICO · GPT-5\.6 LUNA/);
+  assert.doesNotMatch(client, /Math\.min\(99, 62 \+ score\)/);
+  assert.doesNotMatch(client, /% aderência lexical/);
+});

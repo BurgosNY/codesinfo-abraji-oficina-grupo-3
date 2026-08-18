@@ -49,6 +49,31 @@ export type CatalogPayload = {
   experts: Expert[];
 };
 
+export type MatchEngine = "gpt-5.6-luna" | "lexical-fallback" | "catalog";
+
+export type MatchLevel = "alta" | "media" | "exploratoria";
+
+export type ExpertMatch = {
+  expertId: string;
+  level: MatchLevel;
+  rationale: string;
+  signals: string[];
+};
+
+export type MatchPayload = {
+  query: string;
+  universityId: string;
+  engine: MatchEngine;
+  queryUnderstanding: string;
+  matches: ExpertMatch[];
+  latencyMs: number;
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+  };
+  warning?: string;
+};
+
 export type AdminCatalogPayload = CatalogPayload & {
   curators: Curator[];
 };
