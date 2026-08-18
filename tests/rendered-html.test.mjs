@@ -1,91 +1,77 @@
 import assert from "node:assert/strict";
-import { access, readFile, readdir } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const developmentPreviewMeta =
-  /<meta(?=[^>]*\bname=["']codex-preview["'])(?=[^>]*\bcontent=["']development["'])[^>]*>/i;
-const templateRoot = new URL("../", import.meta.url);
-const previewRoot = new URL("../app/_sites-preview/", import.meta.url);
-
-async function render() {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
-
-  return worker.fetch(
-    new Request("http://localhost/", {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async () => new Response("Not found", { status: 404 }),
-      },
-    },
-    {
-      waitUntil() {},
-      passThroughOnException() {},
-    },
-  );
-}
-
-test("server-renders the starter loading skeleton", async () => {
-  const response = await render();
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
-
-  const html = await response.text();
-  assert.match(html, developmentPreviewMeta);
-  assert.match(html, /<title>Your site is taking shape<\/title>/i);
-  assert.match(html, /Building your site/);
-  assert.match(html, /Your site is taking shape/);
-  assert.match(
-    html,
-    /Your first version will appear here automatically when it’s ready\./,
-  );
-  assert.doesNotMatch(html, /Codex/);
-  assert.match(html, /react-loading-skeleton/);
-  assert.match(html, /role="status"/);
-});
-
-test("keeps the loading skeleton scoped and disposable", async () => {
-  const [preview, css, page, layout, packageJson, files] = await Promise.all([
-    readFile(new URL("SkeletonPreview.tsx", previewRoot), "utf8"),
-    readFile(new URL("preview.css", previewRoot), "utf8"),
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+test("renders the public Fonte Certa experience", async () => {
+  const [layout, page, client] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../package.json", import.meta.url), "utf8"),
-    readdir(previewRoot),
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/catalog-client.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.deepEqual(files.sort(), ["SkeletonPreview.tsx", "preview.css"]);
-  assert.match(preview, /from "react-loading-skeleton"/);
-  assert.match(preview, /baseColor="#eceae7"/);
-  assert.match(preview, /highlightColor="#f9f8f6"/);
-  assert.match(preview, /duration=\{2\.8\}/);
-  assert.match(preview, /sites-skeleton-search-placeholder/);
-  assert.match(packageJson, /"react-loading-skeleton": "3\.5\.0"/);
+  assert.match(layout, /title: "Fonte Certa — fontes acadêmicas para jornalistas"/i);
+  assert.match(page, /<CatalogClient \/>/);
+  assert.match(client, /30 FONTES REAIS · UM TEMA/);
+  assert.match(client, /Boas fontes para começar/);
+  assert.match(client, /RESULTADOS VERIFICÁVEIS/);
+  assert.doesNotMatch(client, /DEMONSTRAÇÃO FICTÍCIA ORIGINAL/);
+  assert.match(client, /href="\/curadoria"/);
+  assert.doesNotMatch(client, /experiência futura do bot no Slack/i);
+});
 
-  const shellIndex = preview.indexOf('className="sites-skeleton-shell"');
-  const statusIndex = preview.indexOf('className="sites-skeleton-status"');
-  assert.ok(shellIndex >= 0 && statusIndex > shellIndex);
-  assert.match(css, /position:\s*fixed/);
-  assert.match(css, /inset:\s*0/);
-  assert.match(css, /opacity:\s*0\.52/);
-  assert.match(css, /prefers-reduced-motion:\s*reduce/);
-  assert.doesNotMatch(css, /#020617|canvas|pets|progress/i);
-  assert.doesNotMatch(
-    preview,
-    /loading-spinner|status-mark|status-progress|canvas|cookie|random/i,
-  );
+test("contains only real, officially sourced profiles", async () => {
+  const [seed, client] = await Promise.all([
+    readFile(new URL("../lib/seed-data.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/catalog-client.tsx", import.meta.url), "utf8"),
+  ]);
 
-  assert.match(page, /export const metadata:\s*Metadata/);
-  assert.match(page, /"codex-preview": "development"/);
-  assert.match(page, /<SkeletonPreview \/>/);
-  assert.match(layout, /title:\s*"Starter Project"/);
-  assert.doesNotMatch(layout, /codex-preview|_sites-preview|themeColor|\bViewport\b/);
-  assert.doesNotMatch(css, /(^|\s)(html|body)\s*\{/m);
+  assert.equal((seed.match(/expert\(\{/g) ?? []).length, 30);
+  assert.equal((seed.match(/universityId: "ufmg"/g) ?? []).length, 10);
+  assert.equal((seed.match(/universityId: "unicamp"/g) ?? []).length, 10);
+  assert.equal((seed.match(/universityId: "usp"/g) ?? []).length, 10);
+  assert.equal((seed.match(/referenceTitle: /g) ?? []).length, 30);
+  assert.equal((seed.match(/referenceUrl: "https:\/\//g) ?? []).length, 30);
+  assert.match(seed, /id: "ufmg"/);
+  assert.match(seed, /id: "unicamp"/);
+  assert.match(seed, /id: "usp"/);
+  assert.match(seed, /profileUrl: "https:\/\//);
+  assert.doesNotMatch(seed, /\.invalid/);
+  assert.doesNotMatch(seed, /cunhae@ufmg\.br|deborah@enf\.ufmg\.br|meira@dcc\.ufmg\.br|deisy\.ventura@usp\.br/);
 
-  await assert.rejects(
-    access(new URL("public/_sites-preview", templateRoot)),
-  );
+  assert.doesNotMatch(client, /Ana Ribeiro|João Mendonça|Lívia Santos|Renata Freire/);
+  assert.doesNotMatch(client, /\.invalid|FICTÍCIO|FICTÍCIA|simulado/i);
+  assert.match(client, /PERFIL REAL · FONTE OFICIAL/);
+  assert.match(client, /Reportagem de referência/);
+});
+
+test("protects curation writes with sign-in and an explicit curator allowlist", async () => {
+  const [page, route, auth, schema] = await Promise.all([
+    readFile(new URL("../app/curadoria/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/admin/catalog/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/curator-auth.ts", import.meta.url), "utf8"),
+    readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /requireCurator\("\/curadoria"\)/);
+  assert.match(route, /getAuthorizedCurator/);
+  assert.match(auth, /isCurator\(user\.email\)/);
+  assert.match(schema, /export const curators/);
+  assert.match(schema, /export const universities/);
+  assert.match(schema, /export const experts/);
+});
+
+test("uses Luna for semantic matching without presenting a fake probability", async () => {
+  const [route, client] = await Promise.all([
+    readFile(new URL("../app/api/match/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/catalog-client.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(route, /const MODEL = "gpt-5\.6-luna"/);
+  assert.match(route, /type: "json_schema"/);
+  assert.match(route, /Nunca crie nomes, credenciais ou conhecimentos/);
+  assert.match(route, /lexicalFallback/);
+  assert.match(client, /Por que apareceu:/);
+  assert.match(client, /MATCH SEMÂNTICO · GPT-5\.6 LUNA/);
+  assert.doesNotMatch(client, /Math\.min\(99, 62 \+ score\)/);
+  assert.doesNotMatch(client, /% aderência lexical/);
 });
